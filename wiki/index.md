@@ -4,7 +4,7 @@ The home repo's shared memory, kept by the `chief-of-staff` skill and by hand. E
 
 ## Repos
 
-- [repos.md](repos.md): what portfolio, Perron and Mylder are, and how they depend on each other.
+- [repos.md](repos.md): what portfolio, Perron, Mylder and the FSD simulator are, and how they depend on each other.
 
 ## Working rules
 

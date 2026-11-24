@@ -7,6 +7,7 @@ All claims below as of 2026-11-24 unless dated otherwise.
 | portfolio | Marcin's personal site, English at `/`, Polish at `/pl` | Next.js 16 static export, React 19, Tailwind | www.marcinsieradzki.com |
 | perron | Mylder's design system: tokens, icons, components, docs site, MCP server | npm workspaces, Base UI, Storybook | perron.marcinsieradzki.com |
 | mylder | Live map of Copenhagen's buses, S-tog, metro and trains | Next.js 16, React 19, Effect, deck.gl | mylder.marcinsieradzki.com |
+| fsd-simulator | Self-driving simulator, planned in the Perron and Mylder style (repo created 2026-11-24) | not decided as of 2026-11-24 | not deployed |
 
 ## How they depend on each other
 

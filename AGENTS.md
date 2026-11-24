@@ -9,6 +9,7 @@ Each is cloned inside this repo, under `repos/` (gitignored). If one is missing,
 - Portfolio (Next.js site, www.marcinsieradzki.com): `repos/portfolio`. Clone from https://github.com/marcin-sieradzki/portfolio if missing.
 - Perron (design system, published as `@mylder/perron`, perron.marcinsieradzki.com): `repos/perron`. Clone from https://github.com/marcin-sieradzki/perron if missing. Read its CLAUDE.md before changing it.
 - Mylder (live map of Copenhagen transit, mylder.marcinsieradzki.com): `repos/mylder`. Clone from https://github.com/marcin-sieradzki/mylder if missing. Read its CLAUDE.md before changing it.
+- FSD simulator (self-driving simulator, in the Perron and Mylder style; started 2026-11-24): `repos/fsd-simulator`. Clone from https://github.com/marcin-sieradzki/fsd-simulator if missing. Read its CLAUDE.md before changing it, once it has one.
 
 How they relate, and what each runs on: [wiki/repos.md](wiki/repos.md). Everything the wiki holds: [wiki/index.md](wiki/index.md).
 

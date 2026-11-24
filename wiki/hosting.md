@@ -1,5 +1,7 @@
 # Hosting
 
+All claims below as of 2026-11-24 unless dated otherwise.
+
 - All three deploy on Vercel and redeploy on every push to main.
 - marcinsieradzki.com uses Vercel DNS: a new subdomain only needs adding under the project's Settings, Domains.
 - portfolio: www.marcinsieradzki.com (the apex redirects to www).

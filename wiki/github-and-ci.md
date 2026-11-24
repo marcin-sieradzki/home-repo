@@ -1,5 +1,7 @@
 # GitHub and CI
 
+All claims below as of 2026-11-24 unless dated otherwise.
+
 - All repos live under the `marcin-sieradzki` GitHub account.
 - Merging: Marcin approves each merge. "Merge when green" covers the PRs he named then, not later ones.
 

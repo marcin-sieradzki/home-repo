@@ -1,5 +1,7 @@
 # Repos
 
+All claims below as of 2026-11-24 unless dated otherwise.
+
 | Repo | What it is | Stack | Live |
 |---|---|---|---|
 | portfolio | Marcin's personal site, English at `/`, Polish at `/pl` | Next.js 16 static export, React 19, Tailwind | www.marcinsieradzki.com |

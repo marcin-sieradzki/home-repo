@@ -10,7 +10,7 @@ Each is cloned inside this repo, under `repos/` (gitignored). If one is missing,
 - Perron (design system, published as `@mylder/perron`, perron.marcinsieradzki.com): `repos/perron`. Clone from https://github.com/marcin-sieradzki/perron if missing. Read its CLAUDE.md before changing it.
 - Mylder (live map of Copenhagen transit, mylder.marcinsieradzki.com): `repos/mylder`. Clone from https://github.com/marcin-sieradzki/mylder if missing. Read its CLAUDE.md before changing it.
 
-How they relate, and what each runs on: [wiki/repos.md](wiki/repos.md).
+How they relate, and what each runs on: [wiki/repos.md](wiki/repos.md). Everything the wiki holds: [wiki/index.md](wiki/index.md).
 
 ## Across repos
 
@@ -22,6 +22,6 @@ How they relate, and what each runs on: [wiki/repos.md](wiki/repos.md).
 
 ## Skills
 
-- `.claude/skills/` holds the skills for work that starts here: `/grill-me`, `/grill-with-docs` (also writes a glossary and ADRs), `/wayfinder`, `/prototype`, `/research`, `domain-modeling`, `writing-for-agents`.
+- `.claude/skills/` holds the skills for work that starts here: `/chief-of-staff` (pursue a long-running goal across the repos through subagents, keeping its memory in `wiki/`), `/grill-me`, `/grill-with-docs` (also writes a glossary and ADRs), `/wayfinder`, `/prototype`, `/research`, `domain-modeling`, `writing-for-agents`.
 - `shared-skills/` holds the one master copy of each skill that several repos carry. Edit a shared skill there, never in a repo, then run `scripts/sync-shared-skills.sh` and open a PR in each repo it changed. `shared-skills/TARGETS` says which repo gets which skill.
 - Skills and this file: write them with the `writing-for-agents` skill.

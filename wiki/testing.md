@@ -1,5 +1,7 @@
 # Testing
 
+All claims below as of 2026-11-24 unless dated otherwise.
+
 - Work in Perron and Mylder is done when `npm run check` passes.
 - Full suites and long builds (over about 10 minutes) run on Marcin's computer. Short, targeted test runs can run in the cloud.
 - Timing tests (Perron's NumberField steppers, Mylder's tracker updates) miss under load: run the two repos' checks one at a time.

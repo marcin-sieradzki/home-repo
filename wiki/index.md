@@ -14,3 +14,7 @@ The home repo's shared memory, kept by the `chief-of-staff` skill and by hand. E
 ## Infrastructure
 
 - [hosting.md](hosting.md): Vercel projects and domains.
+
+## Ideas and designs
+
+- [vessel-app-designs.md](vessel-app-designs.md): three design proposals for the vessel tracker demo app (2026-11-26), and the rules they share.

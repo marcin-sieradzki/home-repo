@@ -11,6 +11,10 @@ The home repo's shared memory, kept by the `chief-of-staff` skill and by hand. E
 - [github-and-ci.md](github-and-ci.md): merge rules and each repo's CI rules on attribution.
 - [testing.md](testing.md): where long runs go, and how to test each repo.
 
+## Research
+
+- [vessel-schedule-apis.md](vessel-schedule-apis.md): carrier schedule, AIS and port data sources for a vessel schedule demo app, and what each needs (2026-11-26).
+
 ## Infrastructure
 
 - [hosting.md](hosting.md): Vercel projects and domains.

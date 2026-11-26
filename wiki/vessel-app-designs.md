@@ -8,7 +8,7 @@ The proposals are a Design canvas artifact with 12 artboards: https://claude.ai/
 
 | Proposal | Front door | Theme | Best for |
 | --- | --- | --- | --- |
-| A · Live map | The map, Mylder's shell: glass top bar, overview sheet left, detail panel right, an Ask bar over the map | Light | A demo that feels alive the moment it loads |
+| A · Live map | The map, Mylder’s shell: glass top bar, overview sheet left, detail panel right, an Ask bar over the map | Dark, glowing sea and 3D-style ship glyphs (restyled 2026-11-26 at Marcin’s ask; was light) | A demo that feels alive the moment it loads |
 | B · Port board | A port's arrivals as a timeline of berth windows: dashed is the usual window, solid is where the vessel is heading now | Dark | Showing the learned schedule and delay logic |
 | C · Ask first | A chat; answers come back as vessel and route cards, with the map in a side pane | Light | Showing the assistant and its tool calls |
 

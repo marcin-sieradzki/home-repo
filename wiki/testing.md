@@ -8,3 +8,4 @@ All claims below as of 2026-11-24 unless dated otherwise.
 - Perron: build the site with `PERRON_SITE_URL` set, but run `npm run check` without it.
 - Mylder: prove a change in the real app with the `verify-mylder` skill. In a cloud container, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium`.
 - Portfolio: `prebuild` fails on a missing or unused Polish string, so new copy needs an entry in `src/i18n/pl.ts`. Measure Lighthouse with `npx lighthouse@12` against `npx serve@14` of `out/`.
+- Portfolio (2026-11-27, PR #11): `prebuild` also runs `scripts/color-check.mjs`, which fails on a colour literal outside `src/app/tokens.css`. See [portfolio-theming.md](portfolio-theming.md).

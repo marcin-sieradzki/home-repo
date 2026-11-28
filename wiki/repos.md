@@ -8,6 +8,7 @@ All claims below as of 2026-11-24 unless dated otherwise.
 | perron | Mylder's design system: tokens, icons, components, docs site, MCP server | npm workspaces, Base UI, Storybook | perron.marcinsieradzki.com |
 | mylder | Live map of Copenhagen's buses, S-tog, metro and trains | Next.js 16, React 19, Effect, deck.gl | mylder.marcinsieradzki.com |
 | fsd-simulator | Self-driving simulator, planned in the Perron and Mylder style (repo created 2026-11-24) | not decided as of 2026-11-24 | not deployed |
+| strait-watch | Live 3D view of ship traffic in Danish waters from AIS, on a baked point-cloud coast (planned 2026-11-28) | Next.js 16, React Three Fiber, Perron; Node worker on Fly.io for the aisstream feed | not deployed as of 2026-11-28 |
 
 ## How they depend on each other
 

@@ -10,12 +10,13 @@ Each is cloned inside this repo, under `repos/` (gitignored). If one is missing,
 - Perron (design system, published as `@mylder/perron`, perron.marcinsieradzki.com): `repos/perron`. Clone from https://github.com/marcin-sieradzki/perron if missing. Read its CLAUDE.md before changing it.
 - Mylder (live map of Copenhagen transit, mylder.marcinsieradzki.com): `repos/mylder`. Clone from https://github.com/marcin-sieradzki/mylder if missing. Read its CLAUDE.md before changing it.
 - FSD simulator (self-driving simulator, in the Perron and Mylder style; started 2026-11-24): `repos/fsd-simulator`. Clone from https://github.com/marcin-sieradzki/fsd-simulator if missing. Read its CLAUDE.md before changing it, once it has one.
+- Strait Watch (live 3D view of ship traffic in Danish waters, from AIS; planned 2026-11-28): `repos/strait-watch`. Clone from https://github.com/marcin-sieradzki/strait-watch if missing. Its plan is the README, GLOSSARY and `docs/adr/`; specs and tickets are its GitHub issues.
 
 How they relate, and what each runs on: [wiki/repos.md](wiki/repos.md). Everything the wiki holds: [wiki/index.md](wiki/index.md).
 
 ## Across repos
 
-- Never merge a PR without Marcin's go-ahead: main deploys to production in all three.
+- Never merge a PR without Marcin's go-ahead: main deploys to production in every repo.
 - Mylder's CI fails on session links: no `Claude-Session:` line in commits, and no `claude.ai/code/session_` link or "Generated with Claude Code" footer in PR bodies. See [wiki/github-and-ci.md](wiki/github-and-ci.md).
 - A Perron change reaches Mylder only after a Perron release and a version bump in Mylder.
 - Full test suites and long builds run on Marcin's computer, not in the cloud. See [wiki/testing.md](wiki/testing.md).

@@ -1,0 +1,609 @@
+<title>Bosphorus Point Cloud</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter+Tight:wght@300;400;500&display=swap">
+<style>
+/* Layout: full-bleed WebGL strait, thin instrument chrome pinned to the edges, one inspector card. Single light look, by choice. */
+:root {
+  --paper: #eceeee;      /* page and fog */
+  --ink: #1c1f21;        /* text */
+  --ink-2: #5d6468;      /* secondary text */
+  --rule: #c9cdcf;       /* hairlines */
+  --panel: rgba(247, 248, 248, 0.86);
+  --signal: #f2622e;     /* the one accent */
+  --signal-wash: rgba(242, 98, 46, 0.12);
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --num: "Inter Tight", "Inter", system-ui, sans-serif;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { background: var(--paper); color: var(--ink); font-family: var(--mono); overflow: hidden; }
+#stage { position: fixed; inset: 0; }
+#stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+.bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 5;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 10px); padding-bottom: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  font-size: 12px; letter-spacing: 0.02em;
+  background: linear-gradient(var(--panel), rgba(247,248,248,0));
+}
+.bar .path { display: flex; gap: 6px; min-width: 0; }
+.bar .path span { color: var(--ink-2); }
+.bar .path b { font-weight: 600; }
+.bar .spacer { flex: 1; }
+.bar .meta { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.bar .tag { background: var(--signal); color: #fff; padding: 4px 8px; font-weight: 500; letter-spacing: 0.06em; }
+
+.layers {
+  position: fixed; z-index: 5; left: max(16px, env(safe-area-inset-left, 0px)); top: calc(env(safe-area-inset-top, 0px) + 56px);
+  background: var(--panel); backdrop-filter: blur(6px); border: 1px solid var(--rule);
+  padding: 12px 14px; display: grid; gap: 8px; font-size: 11px; min-width: 168px;
+}
+.layers h2 { margin: 0 0 2px; font-size: 11px; font-weight: 500; letter-spacing: 0.12em; color: var(--ink-2); }
+.layers label { display: flex; align-items: center; gap: 10px; cursor: pointer; letter-spacing: 0.06em; text-transform: uppercase; }
+.layers input { appearance: none; width: 13px; height: 13px; border: 1px solid var(--ink-2); margin: 0; display: grid; place-items: center; background: transparent; }
+.layers input:checked { background: var(--signal); border-color: var(--signal); }
+.layers input:checked::after { content: ""; width: 6px; height: 3px; border: solid #fff; border-width: 0 0 1.5px 1.5px; transform: translateY(-1px) rotate(-45deg); }
+.layers input:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+.layers .note { color: var(--ink-2); font-size: 10px; line-height: 1.5; border-top: 1px dashed var(--rule); padding-top: 8px; max-width: 190px; }
+
+.inspector {
+  position: fixed; z-index: 5; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  width: 300px; background: var(--panel); backdrop-filter: blur(6px); border: 1px solid var(--rule);
+  padding: 14px 16px; font-size: 11px;
+}
+.inspector h2 { margin: 0 0 10px; font-size: 11px; font-weight: 500; letter-spacing: 0.12em; color: var(--ink-2); display: flex; justify-content: space-between; }
+.inspector .name { font-family: var(--num); font-size: 22px; font-weight: 400; letter-spacing: -0.01em; margin: 0 0 12px; display: flex; align-items: baseline; gap: 10px; }
+.inspector .name small { font-family: var(--mono); font-size: 10px; color: var(--signal); letter-spacing: 0.1em; }
+.inspector dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; font-variant-numeric: tabular-nums; }
+.inspector dt { color: var(--ink-2); letter-spacing: 0.06em; }
+.inspector dd { margin: 0; text-align: right; }
+.inspector dd.hot { color: var(--signal); }
+.inspector .sim { margin-top: 10px; color: var(--ink-2); font-size: 10px; }
+
+.tape {
+  position: fixed; z-index: 4; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+  width: 260px; text-align: center; font-size: 11px; color: var(--ink); pointer-events: none;
+}
+.tape .ticks { position: relative; height: 34px; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); }
+.tape .ticks div { position: absolute; top: 0; width: 1px; background: var(--ink); }
+.tape .ticks span { position: absolute; top: 18px; transform: translateX(-50%); font-variant-numeric: tabular-nums; }
+.tape .hdg { font-variant-numeric: tabular-nums; margin-top: 2px; }
+.tape .hdg::before { content: "\2191"; display: block; line-height: 1; }
+
+.labels { position: fixed; inset: 0; pointer-events: none; z-index: 3; }
+.vlabel {
+  position: absolute; left: 0; top: 0; pointer-events: auto; cursor: pointer; border: 0; background: none; padding: 0;
+  font: 500 10px/1 var(--mono); letter-spacing: 0.08em; color: var(--ink); text-align: left;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0;
+}
+.vlabel .chip { background: var(--panel); border: 1px solid var(--rule); padding: 4px 6px; white-space: nowrap; display: flex; gap: 8px; }
+.vlabel .chip em { font-style: normal; color: var(--ink-2); }
+.vlabel .stem { width: 1px; height: 38px; background: var(--ink); margin-left: 0; }
+.vlabel.sel .chip { border-color: var(--signal); background: var(--signal); color: #fff; }
+.vlabel.sel .chip em { color: rgba(255,255,255,0.8); }
+.vlabel.sel .stem { background: var(--signal); }
+.vlabel:focus-visible { outline: none; }
+.vlabel:focus-visible .chip { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+.loading { position: fixed; inset: 0; display: grid; place-items: center; z-index: 9; font-size: 11px; letter-spacing: 0.12em; color: var(--ink-2); background: var(--paper); }
+.loading[hidden] { display: none; }
+
+@media (max-width: 720px) {
+  .layers { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); min-width: 0; padding: 10px 12px; }
+  .layers .note { display: none; }
+  .inspector { width: auto; left: max(16px, env(safe-area-inset-left, 0px)); top: calc(env(safe-area-inset-top, 0px) + 92px); bottom: auto; padding: 10px 12px; }
+  .inspector dl { grid-template-columns: auto 1fr auto 1fr; }
+  .inspector .name { font-size: 18px; margin-bottom: 8px; }
+  .inspector .sim { display: none; }
+  .tape { display: none; }
+  .bar .meta.hide-s { display: none; }
+}
+</style>
+
+<div id="stage"></div>
+<div class="labels" id="labels"></div>
+
+<header class="bar">
+  <div class="path"><span>Farvand</span><span>/</span><span>Bosphorus</span><span>/</span><b>Rumeli Hisarı reach</b></div>
+  <div class="spacer"></div>
+  <div class="meta hide-s" id="clock">--:--:-- UTC+3</div>
+  <div class="meta hide-s">Time ×8</div>
+  <div class="tag">PROTOTYPE</div>
+</header>
+
+<section class="layers" aria-label="Layers">
+  <h2>LAYERS</h2>
+  <label><input type="checkbox" id="lyr-tracks" checked> Tracks</label>
+  <label><input type="checkbox" id="lyr-wakes" checked> Wakes</label>
+  <label><input type="checkbox" id="lyr-tilt" checked> Tilt-shift</label>
+  <label><input type="checkbox" id="lyr-orbit"> Slow orbit</label>
+  <p class="note">Terrain: real elevation, AWS Terrain Tiles (zoom 13, ~29 m grid), heights ×4.2. Vessels are simulated. Drag to orbit, scroll to zoom.</p>
+</section>
+
+<aside class="inspector" aria-live="polite">
+  <h2><span>TARGET</span><span id="i-dir">NORTHBOUND</span></h2>
+  <p class="name"><span id="i-name">MV ORION</span><small id="i-type">CRUDE TANKER</small></p>
+  <dl>
+    <dt>SPEED</dt><dd id="i-spd">—</dd>
+    <dt>HDG</dt><dd id="i-hdg">—</dd>
+    <dt>LAT</dt><dd id="i-lat">—</dd>
+    <dt>LON</dt><dd id="i-lon">—</dd>
+    <dt>LENGTH</dt><dd id="i-len">—</dd>
+    <dt>AIS</dt><dd id="i-ais" class="hot">SIMULATED</dd>
+  </dl>
+  <p class="sim">Click a vessel or its tag to follow it.</p>
+</aside>
+
+<div class="tape" aria-hidden="true"><div class="ticks" id="ticks"></div><div class="hdg" id="hdg">000°T</div></div>
+<div class="loading" id="loading">LOADING TERRAIN…</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+
+// ---------- constants ----------
+const BOUNDS = { n: 41.16, s: 41.02, w: 28.98, e: 29.14 }; // crop of the DEM, degrees
+const UNIT_M = 100;              // one scene unit = 100 m
+const EXAG = 4.2;                // vertical exaggeration
+const TIME_X = 8;                // simulation time-lapse
+const FOG = new THREE.Color(0xeceeee);
+const SIGNAL = new THREE.Color(0xf2622e);
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ---------- data ----------
+const meta = await (await fetch("meta.json")).json();
+const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = "heights.png"; });
+const W = meta.w, H = meta.h, CELL = meta.cellMeters / UNIT_M;
+const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+const cx = cv.getContext("2d", { willReadFrequently: true }); cx.drawImage(img, 0, 0);
+const px = cx.getImageData(0, 0, W, H).data;
+const hM = new Float32Array(W * H); // metres
+for (let i = 0; i < W * H; i++) hM[i] = (px[i * 4] * 256 + px[i * 4 + 1]) / 10;
+const hAt = (c, r) => hM[Math.min(H - 1, Math.max(0, r)) * W + Math.min(W - 1, Math.max(0, c))];
+const toX = c => (c - W / 2) * CELL, toZ = r => (r - H / 2) * CELL;
+const toY = m => (m / UNIT_M) * EXAG;
+const lonOf = x => BOUNDS.w + (x / CELL + W / 2) / W * (BOUNDS.e - BOUNDS.w);
+const latOf = z => BOUNDS.n - (z / CELL + H / 2) / H * (BOUNDS.n - BOUNDS.s);
+
+// ---------- renderer / scene ----------
+const stage = document.getElementById("stage");
+const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(FOG);
+stage.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(FOG, 34, 140);
+const camera = new THREE.PerspectiveCamera(26, innerWidth / innerHeight, 0.1, 400);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb8bcbf, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(-30, 40, 20); scene.add(sun);
+const LIGHT_DIR = new THREE.Vector3(-0.72, 0.5, 0.18).normalize(); // for the dots
+
+// ---------- land as instanced dots ----------
+{
+  // D dots per cell edge (bilinear between DEM samples); steep faces get extra dots so cliffs read solid
+  const D = matchMedia("(pointer: coarse)").matches ? 1.25 : 1.75;
+  const step = 1 / D, dotW = CELL * step * 0.86;
+  const hBil = (u, v) => { const c = Math.floor(u), r = Math.floor(v), fu = u - c, fv = v - r;
+    return (hAt(c, r) * (1 - fu) + hAt(c + 1, r) * fu) * (1 - fv) + (hAt(c, r + 1) * (1 - fu) + hAt(c + 1, r + 1) * fu) * fv; };
+  let count = 0; const cap = 2_400_000; const pos = new Float32Array(cap * 3), col = new Float32Array(cap * 3), sz = new Float32Array(cap);
+  const put = (u, v, h) => {
+    const c = Math.round(u), r = Math.round(v);
+    const dx = (toY(hAt(c + 1, r)) - toY(hAt(c - 1, r))) / (2 * CELL);
+    const dz = (toY(hAt(c, r + 1)) - toY(hAt(c, r - 1))) / (2 * CELL);
+    const n = new THREE.Vector3(-dx, 1, -dz).normalize();
+    const lit = Math.max(0, n.dot(LIGHT_DIR));
+    const avg = (hAt(c - 3, r) + hAt(c + 3, r) + hAt(c, r - 3) + hAt(c, r + 3)) / 4;
+    const cav = THREE.MathUtils.clamp((h - avg) / 12, -1, 1);
+    let val = 0.28 + 0.74 * Math.pow(lit, 1.4) + 0.12 * cav + (Math.random() - 0.5) * 0.05;
+    val = THREE.MathUtils.clamp(val, 0.22, 1.0);
+    const i = count++;
+    pos[i * 3] = toX(u); pos[i * 3 + 1] = toY(h); pos[i * 3 + 2] = toZ(v);
+    col[i * 3] = val; col[i * 3 + 1] = val; col[i * 3 + 2] = val * 1.01;
+    sz[i] = 0.8 + Math.random() * 0.3;
+    return Math.hypot(dx, dz);
+  };
+  for (let v = 0; v < H - 1 && count < cap - 8; v += step) for (let u = 0; u < W - 1 && count < cap - 8; u += step) {
+    const ju = u + (Math.random() - 0.5) * step * 0.28, jv = v + (Math.random() - 0.5) * step * 0.28;
+    const h = hBil(Math.max(0, ju), Math.max(0, jv)); if (h < 1.25) continue;
+    const slope = put(ju, jv, h);
+    // vertical rise across one dot spacing, compared with the dot's width
+    const extra = Math.min(5, Math.floor((slope * CELL * step) / (dotW * 0.8)));
+    for (let k = 0; k < extra; k++) {
+      const eu = u + (Math.random() - 0.5) * step, ev = v + (Math.random() - 0.5) * step;
+      const eh = hBil(Math.max(0, eu), Math.max(0, ev)); if (eh >= 1.25) put(eu, ev, eh);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(pos.subarray(0, count * 3), 3));
+  g.setAttribute("color", new THREE.BufferAttribute(col.subarray(0, count * 3), 3));
+  g.setAttribute("size", new THREE.BufferAttribute(sz.subarray(0, count), 1));
+  window.__dotCount = count;
+  const m = new THREE.ShaderMaterial({
+    uniforms: { uScale: { value: 1 }, uSize: { value: dotW }, uFog: { value: FOG }, uNear: { value: scene.fog.near }, uFar: { value: scene.fog.far } },
+    vertexShader: `
+      attribute float size; attribute vec3 color;
+      uniform float uScale, uSize; varying vec3 vCol; varying float vDist;
+      void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); vDist = -mv.z;
+        gl_PointSize = clamp(size * uSize * uScale / -mv.z, 1.0, 48.0);
+        vCol = color; gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `
+      uniform vec3 uFog; uniform float uNear, uFar; varying vec3 vCol; varying float vDist;
+      void main(){ vec2 p = gl_PointCoord*2.0-1.0; p.y = -p.y; float r2 = dot(p,p); if(r2>1.0) discard;
+        vec3 n = vec3(p, sqrt(1.0-r2));
+        float l = 0.55 + 0.45*max(dot(n, normalize(vec3(-0.45,0.55,0.7))),0.0);
+        float spec = pow(max(dot(n, normalize(vec3(-0.3,0.45,0.85))),0.0), 18.0)*0.35;
+        vec3 c = vCol*l + spec;
+        c *= mix(0.78, 1.0, smoothstep(1.0, 0.55, r2)); // dark rim reads as a bead
+        float f = smoothstep(uNear, uFar, vDist);
+        gl_FragColor = vec4(mix(c, uFog, f), 1.0); }`,
+  });
+  window.__dots = m;
+  const pts = new THREE.Points(g, m); pts.frustumCulled = false; scene.add(pts);
+}
+
+// ---------- shore mask texture (for darker shallows under the cliffs) ----------
+const shoreTex = (() => {
+  const mask = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) mask[i] = hM[i] >= 1.25 ? Math.min(1, hM[i] / 40 + 0.4) : 0;
+  const blur = (src, rad) => { // separable box blur, twice
+    const out = new Float32Array(W * H), tmp = new Float32Array(W * H);
+    for (let r = 0; r < H; r++) { let s = 0; for (let c = -rad; c <= rad; c++) s += src[r * W + Math.max(0, Math.min(W - 1, c))];
+      for (let c = 0; c < W; c++) { tmp[r * W + c] = s / (2 * rad + 1); s += src[r * W + Math.min(W - 1, c + rad + 1)] - src[r * W + Math.max(0, c - rad)]; } }
+    for (let c = 0; c < W; c++) { let s = 0; for (let r = -rad; r <= rad; r++) s += tmp[Math.max(0, Math.min(H - 1, r)) * W + c];
+      for (let r = 0; r < H; r++) { out[r * W + c] = s / (2 * rad + 1); s += tmp[Math.min(H - 1, r + rad + 1) * W + c] - tmp[Math.max(0, r - rad) * W + c]; } }
+    return out; };
+  const b = blur(blur(mask, 3), 3);
+  const data = new Uint8Array(W * H); for (let i = 0; i < W * H; i++) data[i] = Math.round(b[i] * 255);
+  const t = new THREE.DataTexture(data, W, H, THREE.RedFormat); t.magFilter = t.minFilter = THREE.LinearFilter; t.needsUpdate = true; return t;
+})();
+
+// ---------- water: flat, matte, faint fresnel ----------
+const water = new THREE.Mesh(
+  new THREE.PlaneGeometry(W * CELL * 3, H * CELL * 3).rotateX(-Math.PI / 2),
+  new THREE.ShaderMaterial({
+    uniforms: { uShore: { value: shoreTex }, uSize: { value: new THREE.Vector2(W * CELL, H * CELL) }, uFog: { value: FOG }, uNear: { value: 34 }, uFar: { value: 140 }, uTime: { value: 0 } },
+    vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
+    fragmentShader: `
+      uniform sampler2D uShore; uniform vec2 uSize; uniform vec3 uFog; uniform float uNear, uFar, uTime; varying vec3 vW;
+      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+      float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+        return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y); }
+      void main(){
+        vec3 V = normalize(cameraPosition - vW);
+        float fres = pow(1.0 - max(V.y, 0.0), 3.0);
+        vec3 base = vec3(0.80, 0.815, 0.82);
+        vec3 sky = vec3(0.93, 0.94, 0.94);
+        float rip = noise(vW.xz*1.6 + vec2(uTime*0.05, uTime*0.03))*0.5 + noise(vW.xz*4.0 - uTime*0.08)*0.5;
+        vec3 c = mix(base, sky, fres*0.85) + (rip-0.5)*0.018;
+        vec2 uv = vW.xz/uSize + 0.5; uv.y = 1.0 - uv.y;
+        float s = texture2D(uShore, vec2(uv.x, 1.0-uv.y)).r;
+        c *= 1.0 - 0.16*smoothstep(0.0, 0.5, s);   // shade the water next to steep land
+        float d = length(cameraPosition - vW);
+        gl_FragColor = vec4(mix(c, uFog, smoothstep(uNear, uFar, d)), 1.0);
+      }`,
+  }));
+water.position.y = 0; scene.add(water);
+
+// ---------- lanes from the channel centreline ----------
+const cl = meta.centerline.map(([r, c, d]) => ({ x: toX(c), z: toZ(r), half: d * CELL }));
+function lane(sign) { // sign +1: east side (northbound keeps right), -1: west side
+  const out = [];
+  for (let i = 0; i < cl.length; i++) {
+    const a = cl[Math.max(0, i - 1)], b = cl[Math.min(cl.length - 1, i + 1)];
+    const tx = b.x - a.x, tz = b.z - a.z, L = Math.hypot(tx, tz) || 1;
+    const nx = -tz / L, nz = tx / L; // left-hand normal when walking north->south
+    const off = Math.min(cl[i].half * 0.32, 2.2) * sign;
+    out.push(new THREE.Vector3(cl[i].x - nx * off, 0, cl[i].z - nz * off));
+  }
+  return new THREE.CatmullRomCurve3(out, false, "centripetal");
+}
+// centreline runs north (row 0) -> south. Heading south, the west bank is on the right.
+const southbound = lane(-1);
+const northbound = (() => { const c = lane(1); return new THREE.CatmullRomCurve3(c.points.slice().reverse(), false, "centripetal"); })();
+
+// ---------- ships ----------
+const matWhite = new THREE.MeshStandardMaterial({ color: 0xf4f5f5, roughness: 0.75 });
+const matHull = new THREE.MeshStandardMaterial({ color: 0xc9cdd0, roughness: 0.8 });
+const matDark = new THREE.MeshStandardMaterial({ color: 0x4b5155, roughness: 0.6 });
+const matBox = [0xe9ebec, 0xd7dadc, 0xc4c8cb, 0xf3f4f4, 0xb3b8bb].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85 }));
+const shadowTex = (() => { const c = document.createElement("canvas"); c.width = c.height = 128; const g = c.getContext("2d");
+  const gr = g.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, "rgba(40,46,50,0.45)"); gr.addColorStop(1, "rgba(40,46,50,0)");
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
+
+function hull(L, B, Hh) {
+  const s = new THREE.Shape();
+  s.moveTo(-L / 2, -B / 2 * 0.86); s.quadraticCurveTo(-L / 2, -B / 2, -L / 2 + B * 0.3, -B / 2);
+  s.lineTo(L * 0.28, -B / 2); s.quadraticCurveTo(L * 0.46, -B / 2, L / 2, 0);
+  s.quadraticCurveTo(L * 0.46, B / 2, L * 0.28, B / 2); s.lineTo(-L / 2 + B * 0.3, B / 2);
+  s.quadraticCurveTo(-L / 2, B / 2, -L / 2, B / 2 * 0.86); s.closePath();
+  const g = new THREE.ExtrudeGeometry(s, { depth: Hh, bevelEnabled: false, curveSegments: 10 });
+  g.rotateX(-Math.PI / 2); g.translate(0, -Hh * 0.35, 0);
+  return new THREE.Mesh(g, [matWhite, matHull]);
+}
+function box(w, h, d, m, x, y, z) { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); return b; }
+
+function makeShip(kind, L) {
+  const B = L * 0.15, g = new THREE.Group(), deck = L * 0.06;
+  g.add(hull(L, B, L * 0.085));
+  if (kind === "container") {
+    const bays = 14, x0 = -L * 0.3, x1 = L * 0.36, bw = (x1 - x0) / bays;
+    for (let i = 0; i < bays; i++) {
+      const rows = 5;
+      for (let j = 0; j < rows; j++) {
+        const hgt = deck * (0.35 + Math.floor(Math.random() * 4) * 0.22);
+        g.add(box(bw * 0.9, hgt, B * 0.88 / rows * 0.94, matBox[(i * 3 + j * 7 + (Math.random() * 2 | 0)) % matBox.length],
+          x0 + bw * (i + 0.5), deck * 0.5 + hgt / 2, (j - (rows - 1) / 2) * B * 0.88 / rows));
+      }
+    }
+    g.add(box(L * 0.05, deck * 2.2, B * 0.9, matWhite, -L * 0.38, deck * 1.4, 0));
+    g.add(box(L * 0.052, deck * 0.22, B * 0.92, matDark, -L * 0.38, deck * 2.3, 0));
+    g.add(box(L * 0.03, deck * 0.9, B * 0.2, matHull, -L * 0.44, deck * 1.2, 0));
+  } else { // tanker
+    g.add(box(L * 0.62, deck * 0.12, B * 0.08, matHull, L * 0.02, deck * 0.62, 0));
+    for (let i = 0; i < 9; i++) g.add(box(L * 0.012, deck * 0.25, B * 0.62, matHull, -L * 0.26 + i * L * 0.07, deck * 0.66, 0));
+    g.add(box(L * 0.04, deck * 0.3, B * 0.5, matHull, L * 0.05, deck * 0.7, 0));
+    g.add(box(L * 0.09, deck * 1.8, B * 0.92, matWhite, -L * 0.37, deck * 1.3, 0));
+    g.add(box(L * 0.092, deck * 0.2, B * 0.94, matDark, -L * 0.37, deck * 2.05, 0));
+    g.add(box(L * 0.035, deck * 0.9, B * 0.22, matDark, -L * 0.43, deck * 2.0, 0));
+    g.add(box(L * 0.02, deck * 0.18, B * 0.18, matHull, L * 0.4, deck * 0.66, 0));
+  }
+  const sh = new THREE.Mesh(new THREE.PlaneGeometry(L * 1.25, B * 2.6).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, fog: true }));
+  sh.position.y = 0.006; sh.renderOrder = 1; g.add(sh);
+  return g;
+}
+
+// ---------- wakes: particle trails that spread and fade ----------
+class Wake {
+  constructor(n = 9000) {
+    this.n = n; this.i = 0;
+    this.pos = new Float32Array(n * 3); this.vel = new Float32Array(n * 2); this.age = new Float32Array(n).fill(99); this.life = new Float32Array(n).fill(1);
+    this.alpha = new Float32Array(n); this.size = new Float32Array(n);
+    const g = new THREE.BufferGeometry();
+    this.aPos = new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage);
+    this.aAlpha = new THREE.BufferAttribute(this.alpha, 1).setUsage(THREE.DynamicDrawUsage);
+    this.aSize = new THREE.BufferAttribute(this.size, 1).setUsage(THREE.DynamicDrawUsage);
+    g.setAttribute("position", this.aPos); g.setAttribute("alpha", this.aAlpha); g.setAttribute("size", this.aSize);
+    this.mat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false,
+      uniforms: { uScale: { value: 1 }, uFog: { value: FOG }, uNear: { value: 34 }, uFar: { value: 140 } },
+      vertexShader: `attribute float alpha; attribute float size; uniform float uScale; varying float vA; varying float vD;
+        void main(){ vec4 mv = modelViewMatrix*vec4(position,1.0); vD=-mv.z; vA=alpha; gl_PointSize = clamp(size*uScale/-mv.z, 1.0, 24.0); gl_Position=projectionMatrix*mv; }`,
+      fragmentShader: `uniform vec3 uFog; uniform float uNear,uFar; varying float vA; varying float vD;
+        void main(){ vec2 p=gl_PointCoord*2.0-1.0; float r=dot(p,p); if(r>1.0) discard;
+          float f = smoothstep(uNear,uFar,vD); gl_FragColor = vec4(1.0,1.0,1.0, vA*(1.0-f)*smoothstep(1.0,0.3,r)); }`,
+    });
+    this.points = new THREE.Points(g, this.mat); this.points.frustumCulled = false; this.points.renderOrder = 2;
+  }
+  emit(x, z, vx, vz, life, size) {
+    const i = this.i; this.i = (this.i + 1) % this.n;
+    this.pos[i * 3] = x; this.pos[i * 3 + 1] = 0.012; this.pos[i * 3 + 2] = z;
+    this.vel[i * 2] = vx; this.vel[i * 2 + 1] = vz; this.age[i] = 0; this.life[i] = life; this.size[i] = size;
+  }
+  step(dt) {
+    for (let i = 0; i < this.n; i++) {
+      if (this.age[i] > this.life[i]) { this.alpha[i] = 0; continue; }
+      this.age[i] += dt; const k = this.age[i] / this.life[i];
+      this.pos[i * 3] += this.vel[i * 2] * dt; this.pos[i * 3 + 2] += this.vel[i * 2 + 1] * dt;
+      this.vel[i * 2] *= 0.985; this.vel[i * 2 + 1] *= 0.985;
+      this.alpha[i] = Math.pow(Math.max(0, 1 - k), 1.3) * 0.95;
+    }
+    this.aPos.needsUpdate = this.aAlpha.needsUpdate = this.aSize.needsUpdate = true;
+  }
+}
+
+const VESSELS = [
+  { name: "MV ORION", type: "CRUDE TANKER", kind: "tanker", lenM: 274, kn: 9.4, curve: northbound, t: 0.47, dir: "NORTHBOUND" },
+  { name: "MV KARA", type: "CONTAINER", kind: "container", lenM: 300, kn: 10.8, curve: southbound, t: 0.36, dir: "SOUTHBOUND" },
+  { name: "MV MIRA", type: "CONTAINER", kind: "container", lenM: 228, kn: 8.6, curve: northbound, t: 0.31, dir: "NORTHBOUND" },
+];
+const labelsEl = document.getElementById("labels");
+for (const v of VESSELS) {
+  v.L = (v.lenM / UNIT_M) * 1.7;            // drawn 1.7x so a ship reads at this scale
+  v.mesh = makeShip(v.kind, v.L); scene.add(v.mesh);
+  v.len = v.curve.getLength();
+  v.speed = (v.kn * 0.5144 / UNIT_M) * TIME_X; // scene units per second
+  v.wake = new Wake(); scene.add(v.wake.points);
+  v.track = new THREE.Line(new THREE.BufferGeometry().setFromPoints(v.curve.getSpacedPoints(400).map(p => p.clone().setY(0.01))),
+    new THREE.LineDashedMaterial({ color: 0x8b9296, dashSize: 0.35, gapSize: 0.35, transparent: true, opacity: 0.7 }));
+  v.track.computeLineDistances(); scene.add(v.track);
+  const b = document.createElement("button"); b.className = "vlabel"; b.type = "button";
+  b.innerHTML = `<span class="chip">${v.name.replace("MV ", "")}<em>${v.kn.toFixed(1)} KN</em></span><span class="stem"></span>`;
+  b.addEventListener("click", () => select(v)); labelsEl.appendChild(b); v.label = b;
+}
+
+// ---------- camera, controls ----------
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 6; controls.maxDistance = 90; controls.maxPolarAngle = Math.PI * 0.46; controls.minPolarAngle = 0.15;
+let selected = VESSELS[0];
+const p0 = selected.curve.getPointAt(selected.t);
+controls.target.copy(p0).add(new THREE.Vector3(0, 0, -4));
+{ const k = innerWidth < innerHeight ? 1.7 : 1; camera.position.set(p0.x + 12 * k, 19 * k, p0.z + 27 * k); }
+let follow = true;
+controls.addEventListener("start", () => { userDragging = true; });
+controls.addEventListener("end", () => { userDragging = false; });
+let userDragging = false;
+
+function select(v) {
+  selected = v; follow = true;
+  for (const o of VESSELS) {
+    o.label.classList.toggle("sel", o === v);
+    o.track.material.color.set(o === v ? SIGNAL : 0x8b9296); o.track.material.opacity = o === v ? 0.95 : 0.6;
+  }
+  document.getElementById("i-name").textContent = v.name;
+  document.getElementById("i-type").textContent = v.type;
+  document.getElementById("i-dir").textContent = v.dir;
+  document.getElementById("i-spd").textContent = v.kn.toFixed(1) + " KN";
+  document.getElementById("i-len").textContent = v.lenM + " M";
+}
+select(selected);
+
+// picking on the canvas
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+let downAt = null;
+renderer.domElement.addEventListener("pointerdown", e => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener("pointerup", e => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
+  ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
+  for (const v of VESSELS) if (ray.intersectObject(v.mesh, true).length) { select(v); return; }
+});
+
+// ---------- post: tilt-shift + grade ----------
+const rt = new THREE.WebGLRenderTarget(innerWidth, innerHeight, { samples: 4, type: THREE.HalfFloatType });
+const composer = new EffectComposer(renderer, rt);
+composer.setPixelRatio(Math.min(devicePixelRatio, 2));
+composer.addPass(new RenderPass(scene, camera));
+const TiltShader = (dir) => ({
+  uniforms: { tDiffuse: { value: null }, uDir: { value: dir }, uFocus: { value: 0.42 }, uBand: { value: 0.12 }, uAmount: { value: 1 }, uRes: { value: new THREE.Vector2(innerWidth, innerHeight) } },
+  vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uDir, uRes; uniform float uFocus, uBand, uAmount; varying vec2 vUv;
+    void main(){
+      float d = max(0.0, abs(vUv.y - uFocus) - uBand);
+      float rad = clamp(d * 22.0, 0.0, 9.0) * uAmount;            // px of blur
+      vec2 st = uDir / uRes * rad / 4.0;
+      vec4 s = texture2D(tDiffuse, vUv) * 0.2;
+      s += (texture2D(tDiffuse, vUv + st) + texture2D(tDiffuse, vUv - st)) * 0.16;
+      s += (texture2D(tDiffuse, vUv + st*2.0) + texture2D(tDiffuse, vUv - st*2.0)) * 0.12;
+      s += (texture2D(tDiffuse, vUv + st*3.0) + texture2D(tDiffuse, vUv - st*3.0)) * 0.08;
+      s += (texture2D(tDiffuse, vUv + st*4.0) + texture2D(tDiffuse, vUv - st*4.0)) * 0.04;
+      gl_FragColor = s; }`,
+});
+const tiltH = new ShaderPass(TiltShader(new THREE.Vector2(1, 0)));
+const tiltV = new ShaderPass(TiltShader(new THREE.Vector2(0, 1)));
+const tiltH2 = new ShaderPass(TiltShader(new THREE.Vector2(0.7, 0.7)));
+const tiltV2 = new ShaderPass(TiltShader(new THREE.Vector2(-0.7, 0.7)));
+const tiltPasses = [tiltH, tiltV, tiltH2, tiltV2];
+tiltPasses.forEach(p => composer.addPass(p));
+const grade = new ShaderPass({
+  uniforms: { tDiffuse: { value: null }, uTime: { value: 0 } },
+  vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime; varying vec2 vUv;
+    float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)))*43758.5453); }
+    void main(){ vec4 c = texture2D(tDiffuse, vUv);
+      float lum = dot(c.rgb, vec3(0.299,0.587,0.114));
+      vec3 mono = mix(vec3(lum), c.rgb, 0.55);                    // pull towards monochrome, keep the orange
+      float vig = smoothstep(1.05, 0.35, length((vUv-0.5)*vec2(1.1,1.25)));
+      mono *= mix(0.9, 1.0, vig);
+      mono += (h(vUv*1000.0 + uTime) - 0.5) * 0.018;              // film grain
+      gl_FragColor = vec4(mono, c.a); }`,
+});
+composer.addPass(grade);
+composer.addPass(new OutputPass());
+
+// ---------- UI ----------
+const $ = id => document.getElementById(id);
+const tracksOn = () => $("lyr-tracks").checked;
+$("lyr-tracks").addEventListener("change", () => VESSELS.forEach(v => v.track.visible = tracksOn()));
+$("lyr-wakes").addEventListener("change", e => VESSELS.forEach(v => v.wake.points.visible = e.target.checked));
+$("lyr-tilt").addEventListener("change", e => tiltPasses.forEach(p => p.enabled = e.target.checked));
+$("lyr-orbit").addEventListener("change", e => { controls.autoRotate = e.target.checked; controls.autoRotateSpeed = 0.35; });
+
+const ticksEl = $("ticks");
+function drawTape(hdg) {
+  let html = "";
+  for (let d = -40; d <= 40; d += 5) {
+    const deg = Math.round(hdg / 5) * 5 + d, off = (deg - hdg) * 3.2 + 130;
+    const major = ((deg % 10) + 10) % 10 === 0;
+    html += `<div style="left:${off.toFixed(1)}px;height:${major ? 12 : 6}px"></div>`;
+    if (major) html += `<span style="left:${off.toFixed(1)}px">${String(((deg % 360) + 360) % 360 / 10 | 0).padStart(2, "0")}</span>`;
+  }
+  ticksEl.innerHTML = html; $("hdg").textContent = String(Math.round(((hdg % 360) + 360) % 360)).padStart(3, "0") + "°T";
+}
+
+function resize() {
+  renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  const scale = renderer.getPixelRatio() * innerHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+  window.__dots.uniforms.uScale.value = scale;
+  VESSELS.forEach(v => v.wake.mat.uniforms.uScale.value = scale);
+  tiltPasses.forEach(p => p.uniforms.uRes.value.set(innerWidth * renderer.getPixelRatio(), innerHeight * renderer.getPixelRatio()));
+}
+addEventListener("resize", resize); resize();
+
+// ---------- loop ----------
+const clock = new THREE.Clock(); const tmp = new THREE.Vector3(), tan = new THREE.Vector3(), prevTarget = new THREE.Vector3();
+let simTime = 0, lastLabel = 0;
+function updateVessel(v, dt) {
+  v.t = (v.t + (v.speed * dt) / v.len) % 1;
+  const p = v.curve.getPointAt(v.t); const tg = v.curve.getTangentAt(v.t);
+  v.mesh.position.set(p.x, 0, p.z); v.mesh.rotation.y = Math.atan2(-tg.z, tg.x);
+  v.pos = p; v.tan = tg; v.hdg = (THREE.MathUtils.radToDeg(Math.atan2(tg.x, -tg.z)) + 360) % 360;
+  // wake: Kelvin-style spread from the stern, plus a dense turbulent centre
+  const nx = -tg.z, nz = tg.x, sx = p.x - tg.x * v.L * 0.5, sz = p.z - tg.z * v.L * 0.5;
+  const rate = Math.max(1, Math.round(dt * 60));
+  for (let k = 0; k < 7 * rate; k++) {
+    const side = Math.random() < 0.5 ? -1 : 1, spread = v.speed * (0.32 + Math.random() * 0.12);
+    const off = (Math.random() - 0.5) * v.L * 0.12;
+    v.wake.emit(sx + nx * off, sz + nz * off, nx * side * spread + tg.x * v.speed * 0.05, nz * side * spread + tg.z * v.speed * 0.05, 9 + Math.random() * 5, 0.05 + Math.random() * 0.05);
+  }
+  for (let k = 0; k < 5 * rate; k++) {
+    const off = (Math.random() - 0.5) * v.L * 0.1;
+    v.wake.emit(sx + nx * off, sz + nz * off, (Math.random() - 0.5) * 0.05, (Math.random() - 0.5) * 0.05, 6 + Math.random() * 6, 0.08 + Math.random() * 0.08);
+  }
+  // bow wave
+  const bx = p.x + tg.x * v.L * 0.5, bz = p.z + tg.z * v.L * 0.5;
+  for (let k = 0; k < 2 * rate; k++) {
+    const side = Math.random() < 0.5 ? -1 : 1;
+    v.wake.emit(bx - tg.x * v.L * 0.08 + nx * side * v.L * 0.06, bz - tg.z * v.L * 0.08 + nz * side * v.L * 0.06, nx * side * v.speed * 0.25, nz * side * v.speed * 0.25, 1.6, 0.05);
+  }
+  v.wake.step(dt);
+}
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05) * (reduceMotion ? 0.25 : 1);
+  simTime += dt;
+  VESSELS.forEach(v => updateVessel(v, dt));
+  // follow the selected ship by moving the orbit target with it
+  if (follow) {
+    const goal = tmp.copy(selected.pos).addScaledVector(selected.tan, 4);
+    const delta = goal.sub(controls.target).multiplyScalar(userDragging ? 0.02 : 0.04);
+    controls.target.add(delta); camera.position.add(delta);
+  }
+  controls.update();
+  water.material.uniforms.uTime.value = simTime; grade.uniforms.uTime.value = simTime % 10;
+  // focus band follows the selected ship on screen
+  tmp.copy(selected.pos).project(camera);
+  const fy = THREE.MathUtils.clamp(tmp.y * 0.5 + 0.5, 0.2, 0.8);
+  tiltPasses.forEach(p => p.uniforms.uFocus.value += (fy - p.uniforms.uFocus.value) * 0.1);
+  composer.render();
+  // labels
+  for (const v of VESSELS) {
+    tmp.copy(v.pos).setY(v.L * 0.16).project(camera);
+    const vis = tmp.z < 1 && Math.abs(tmp.x) < 1.1 && Math.abs(tmp.y) < 1.1;
+    v.label.hidden = !vis;
+    if (vis) { const x = (tmp.x * 0.5 + 0.5) * innerWidth, y = (-tmp.y * 0.5 + 0.5) * innerHeight;
+      v.label.style.transform = `translate(${x.toFixed(1)}px, ${(y - 58).toFixed(1)}px)`; }
+  }
+  if (simTime - lastLabel > 0.2) {
+    lastLabel = simTime;
+    $("i-hdg").textContent = String(Math.round(selected.hdg)).padStart(3, "0") + "°T";
+    $("i-lat").textContent = latOf(selected.pos.z).toFixed(4) + "° N";
+    $("i-lon").textContent = lonOf(selected.pos.x).toFixed(4) + "° E";
+    drawTape(selected.hdg);
+    const d = new Date(Date.now() + 3 * 3600e3);
+    $("clock").textContent = d.toISOString().slice(11, 19) + " UTC+3";
+  }
+  requestAnimationFrame(frame);
+}
+// warm up wakes so the first frame already has trails
+for (let i = 0; i < 720; i++) VESSELS.forEach(v => updateVessel(v, 1 / 60));
+$("loading").hidden = true;
+frame();
+</script>

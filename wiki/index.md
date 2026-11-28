@@ -14,3 +14,7 @@ The home repo's shared memory, kept by the `chief-of-staff` skill and by hand. E
 ## Infrastructure
 
 - [hosting.md](hosting.md): Vercel projects and domains.
+
+## Prototypes
+
+- [point-cloud-terrain.md](point-cloud-terrain.md): 2026-11-28 Bosphorus point-cloud prototype for the vessel app; DEM source, the bead shader, density, wakes, tilt-shift.
